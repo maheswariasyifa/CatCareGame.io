@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kucingku - Virtual Pet Game</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome untuk Icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts - Fredoka -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-900 flex items-center justify-center min-h-screen p-0 sm:p-4 overflow-hidden">
+
+    <!-- Container Game Utama -->
+    <div id="gameContainer" class="relative w-full max-w-md h-[100vh] sm:h-[840px] bg-sky-200 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col justify-between border-0 sm:border-8 border-pink-300">
+        
+        <!-- Canvas FX -->
+        <canvas id="effectsCanvas"></canvas>
+
+        <!-- Dynamic Overlay / Night Light -->
+        <div id="nightOverlay" class="absolute inset-0 bg-indigo-950/70 pointer-events-none transition-opacity duration-1000 opacity-0 z-10"></div>
+
+        <!-- HEADER / TOP BAR STATUS -->
+        <div class="relative z-20 bg-white/80 backdrop-blur-md p-3 m-3 rounded-2xl border-2 border-pink-200 shadow-sm">
+            <!-- Info Bar (Koin, Nama, Jam) -->
+            <div class="flex justify-between items-center mb-2 pb-2 border-b border-pink-100">
+                <div class="flex items-center space-x-2">
+                    <span class="bg-amber-100 border border-amber-300 px-3 py-1 rounded-full text-amber-800 text-sm font-bold flex items-center gap-1 shadow-sm">
+                        <i class="fa-solid fa-coins text-amber-500"></i>
+                        <span id="coinCount">100</span>
+                    </span>
+                </div>
+                <div class="text-center">
+                    <div id="petNameDisplay" class="font-bold text-pink-600 text-lg leading-none">Mimi</div>
+                    <div id="timeDisplay" class="text-[10px] text-gray-500 font-medium">12:00 SIANG</div>
+                </div>
+                <button onclick="openShop()" class="bg-pink-400 hover:bg-pink-500 text-white p-2 rounded-xl text-xs font-bold cute-btn flex items-center gap-1">
+                    <i class="fa-solid fa-store text-sm"></i>
+                    <span>Toko</span>
+                </button>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <!-- Lapar -->
+                <div>
+                    <div class="flex justify-between font-bold text-amber-700 mb-0.5">
+                        <span><i class="fa-solid fa-utensils"></i> Lapar</span>
+                        <span id="statHungerVal">80%</span>
+                    </div>
+                    <div class="w-full bg-amber-100 h-2.5 rounded-full overflow-hidden border border-amber-200">
+                        <div id="barHunger" class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: 80%;"></div>
+                    </div>
+                </div>
+
+                <!-- Kebersihan -->
+                <div>
+                    <div class="flex justify-between font-bold text-cyan-700 mb-0.5">
+                        <span><i class="fa-solid fa-soap"></i> Mandi</span>
+                        <span id="statHygieneVal">90%</span>
+                    </div>
+                    <div class="w-full bg-cyan-100 h-2.5 rounded-full overflow-hidden border border-cyan-200">
+                        <div id="barHygiene" class="bg-cyan-400 h-full rounded-full transition-all duration-300" style="width: 90%;"></div>
+                    </div>
+                </div>
+
+                <!-- Bahagia -->
+                <div>
+                    <div class="flex justify-between font-bold text-pink-700 mb-0.5">
+                        <span><i class="fa-solid fa-face-smile"></i> Bahagia</span>
+                        <span id="statHappinessVal">85%</span>
+                    </div>
+                    <div class="w-full bg-pink-100 h-2.5 rounded-full overflow-hidden border border-pink-200">
+                        <div id="barHappiness" class="bg-pink-400 h-full rounded-full transition-all duration-300" style="width: 85%;"></div>
+                    </div>
+                </div>
+
+                <!-- Energi -->
+                <div>
+                    <div class="flex justify-between font-bold text-purple-700 mb-0.5">
+                        <span><i class="fa-solid fa-bolt"></i> Energi</span>
+                        <span id="statEnergyVal">70%</span>
+                    </div>
+                    <div class="w-full bg-purple-100 h-2.5 rounded-full overflow-hidden border border-purple-200">
+                        <div id="barEnergy" class="bg-purple-400 h-full rounded-full transition-all duration-300" style="width: 70%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN STAGE / RUANGAN KUCING -->
+        <div id="roomStage" class="relative flex-1 bg-day transition-all duration-1000 flex flex-col items-center justify-center relative cursor-pointer overflow-hidden" onclick="handlePetInteraction(event)">
+            
+            <!-- Notifikasi Bubble Kucing -->
+            <div id="catSpeech" class="absolute top-6 bg-white/90 px-4 py-2 rounded-2xl shadow-lg border-2 border-pink-300 text-xs font-bold text-slate-700 animate-bounce transition-all opacity-0 pointer-events-none z-20 flex items-center gap-2">
+                <span id="catSpeechText">Meow!</span>
+            </div>
+
+            <!-- SVG KUCING INTERAKTIF -->
+            <div id="catCharacter" class="relative w-56 h-56 animate-float transition-all duration-300">
+                
+                <!-- SVG Vector Kucing Custom -->
+                <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-xl">
+                    <g id="catBodyGroup">
+                        <!-- Telinga Luar -->
+                        <path id="catEarLeft" d="M 50,75 L 30,20 L 80,45 Z" fill="#f97316" stroke="#c2410c" stroke-width="3" stroke-linejoin="round"/>
+                        <path id="catEarRight" d="M 150,75 L 170,20 L 120,45 Z" fill="#f97316" stroke="#c2410c" stroke-width="3" stroke-linejoin="round"/>
+                        
+                        <!-- Telinga Dalam -->
+                        <path d="M 52,68 L 38,30 L 72,48 Z" fill="#fbcfe8"/>
+                        <path d="M 148,68 L 162,30 L 128,48 Z" fill="#fbcfe8"/>
+
+                        <!-- Buntut -->
+                        <path id="catTail" d="M 145,150 Q 185,160 175,120" fill="none" stroke="#f97316" stroke-width="14" stroke-linecap="round"/>
+
+                        <!-- Badan Main -->
+                        <ellipse cx="100" cy="135" rx="52" ry="45" fill="#f97316" id="catBodyBase"/>
+                        <!-- Perut / Inner Body -->
+                        <ellipse cx="100" cy="140" rx="35" ry="30" fill="#ffedd5"/>
+
+                        <!-- Kepala -->
+                        <circle cx="100" cy="85" r="48" fill="#f97316" id="catHeadBase"/>
+                        <!-- Muka Inner -->
+                        <ellipse cx="100" cy="92" rx="36" ry="28" fill="#ffedd5"/>
+
+                        <!-- Aksesoris Topi/Pita (Di-toggle via Shop) -->
+                        <g id="accHat" class="hidden">
+                            <!-- Party Hat -->
+                            <polygon points="100,10 80,50 120,50" fill="#ec4899" />
+                            <circle cx="100" cy="10" r="6" fill="#fde047" />
+                        </g>
+                        <g id="accBow" class="hidden">
+                            <!-- Pita Leher -->
+                            <path d="M 85,125 L 115,125 L 115,135 L 85,135 Z" fill="#ef4444" />
+                            <circle cx="100" cy="130" r="5" fill="#fde047" />
+                        </g>
+
+                        <!-- Kacamata -->
+                        <g id="accGlasses" class="hidden">
+                            <circle cx="80" cy="78" r="14" fill="none" stroke="#1e293b" stroke-width="3"/>
+                            <circle cx="120" cy="78" r="14" fill="none" stroke="#1e293b" stroke-width="3"/>
+                            <line x1="94" y1="78" x2="106" y2="78" stroke="#1e293b" stroke-width="3"/>
+                        </g>
+
+                        <!-- MATA (Bisa berubah Ekspresi) -->
+                        <g id="eyesNormal">
+                            <ellipse cx="80" cy="75" rx="7" ry="10" fill="#0f172a"/>
+                            <ellipse cx="120" cy="75" rx="7" ry="10" fill="#0f172a"/>
+                            <!-- Shine -->
+                            <circle cx="78" cy="72" r="3" fill="#ffffff"/>
+                            <circle cx="118" cy="72" r="3" fill="#ffffff"/>
+                        </g>
+
+                        <g id="eyesHappy" class="hidden">
+                            <path d="M 72,78 Q 80,66 88,78" fill="none" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M 112,78 Q 120,66 128,78" fill="none" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+                        </g>
+
+                        <g id="eyesSleep" class="hidden">
+                            <path d="M 72,75 Q 80,83 88,75" fill="none" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M 112,75 Q 120,83 128,75" fill="none" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+                        </g>
+
+                        <!-- Pipi Merah -->
+                        <ellipse cx="70" cy="88" rx="6" ry="4" fill="#f43f5e" opacity="0.4"/>
+                        <ellipse cx="130" cy="88" rx="6" ry="4" fill="#f43f5e" opacity="0.4"/>
+
+                        <!-- Hidung & Mulut -->
+                        <polygon points="96,87 104,87 100,92" fill="#f43f5e"/>
+                        <path id="mouthNormal" d="M 94,95 Q 100,100 100,95 Q 100,100 106,95" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>
+                        <path id="mouthOpen" d="M 94,95 Q 100,108 106,95 Z" fill="#ef4444" class="hidden"/>
+
+                        <!-- Kumis -->
+                        <line x1="55" y1="82" x2="35" y2="80" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="55" y1="88" x2="35" y2="90" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="145" y1="82" x2="165" y2="80" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="145" y1="88" x2="165" y2="90" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+
+                        <!-- Kaki Depan -->
+                        <ellipse cx="82" cy="165" rx="10" ry="12" fill="#f97316" id="catPawLeft"/>
+                        <ellipse cx="118" cy="165" rx="10" ry="12" fill="#f97316" id="catPawRight"/>
+                    </g>
+                </svg>
+
+                <!-- Dirty Overlay (Kotoran/Lalat saat Hygiene rendah) -->
+                <div id="dirtyOverlay" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity">
+                    <div class="absolute top-10 left-8 text-amber-800 text-xl font-bold">💩</div>
+                    <div class="absolute bottom-12 right-6 text-amber-800 text-xl font-bold">💩</div>
+                    <div class="absolute top-20 right-10 text-xs animate-ping">🪰</div>
+                </div>
+
+                <!-- Zzz Sleep Effect -->
+                <div id="sleepZzz" class="absolute -top-6 right-2 text-3xl font-bold text-indigo-400 opacity-0 pointer-events-none">
+                    Z<span class="text-xl">z</span><span class="text-sm">z</span>
+                </div>
+            </div>
+
+            <!-- Pet Me Prompt / Hint -->
+            <div class="absolute bottom-3 text-xs text-slate-500/80 font-medium bg-white/50 px-3 py-1 rounded-full backdrop-blur-sm pointer-events-none">
+                <i class="fa-solid fa-hand-pointer text-pink-400 mr-1"></i> Elus Kucing untuk membuatnya bahagia!
+            </div>
+        </div>
+
+        <!-- TOOLBAR BOTTOM / AKSI GAME -->
+        <div class="relative z-20 bg-white p-3 rounded-t-3xl border-t-2 border-pink-100 shadow-lg">
+            <div class="grid grid-cols-4 gap-2">
+                <!-- Tombol Beri Makan -->
+                <button onclick="openFoodMenu()" class="bg-amber-100 border-2 border-amber-300 text-amber-800 p-3 rounded-2xl flex flex-col items-center justify-center cute-btn">
+                    <i class="fa-solid fa-bowl-food text-2xl text-amber-500 mb-1"></i>
+                    <span class="text-xs font-bold">Makan</span>
+                </button>
+
+                <!-- Tombol Mandi -->
+                <button onclick="startBathing()" class="bg-cyan-100 border-2 border-cyan-300 text-cyan-800 p-3 rounded-2xl flex flex-col items-center justify-center cute-btn">
+                    <i class="fa-solid fa-shower text-2xl text-cyan-500 mb-1"></i>
+                    <span class="text-xs font-bold">Mandi</span>
+                </button>
+
+                <!-- Tombol Main Mini Game -->
+                <button onclick="openMinigame()" class="bg-pink-100 border-2 border-pink-300 text-pink-800 p-3 rounded-2xl flex flex-col items-center justify-center cute-btn">
+                    <i class="fa-solid fa-gamepad text-2xl text-pink-500 mb-1"></i>
+                    <span class="text-xs font-bold">Bermain</span>
+                </button>
+
+                <!-- Tombol Tidur -->
+                <button onclick="toggleSleep()" class="bg-purple-100 border-2 border-purple-300 text-purple-800 p-3 rounded-2xl flex flex-col items-center justify-center cute-btn">
+                    <i class="fa-solid fa-bed text-2xl text-purple-500 mb-1"></i>
+                    <span id="sleepBtnText" class="text-xs font-bold">Tidur</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL FOOD SELECTION -->
+        <div id="foodModal" class="absolute inset-0 bg-black/40 backdrop-blur-sm z-30 flex items-end sm:items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 border-2 border-amber-200 cute-shadow transform translate-y-10 transition-transform duration-300" id="foodModalContent">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-amber-800 text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-cookie-bite text-amber-500"></i> Pilih Makanan
+                    </h3>
+                    <button onclick="closeModal('foodModal')" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="feedPet('fish', 20, 0)" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 p-3 rounded-2xl text-center cute-btn flex flex-col items-center">
+                        <span class="text-3xl mb-1">🐟</span>
+                        <span class="text-xs font-bold text-amber-900">Ikan Segar</span>
+                        <span class="text-[10px] text-emerald-600 font-bold mt-1">+20 Lapar</span>
+                        <span class="text-[10px] text-amber-600 font-bold">Gratis</span>
+                    </button>
+                    <button onclick="feedPet('milk', 35, 10)" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 p-3 rounded-2xl text-center cute-btn flex flex-col items-center">
+                        <span class="text-3xl mb-1">🥛</span>
+                        <span class="text-xs font-bold text-amber-900">Susu Warm</span>
+                        <span class="text-[10px] text-emerald-600 font-bold mt-1">+35 Lapar</span>
+                        <span class="text-[10px] text-amber-600 font-bold">🪙 10 Koin</span>
+                    </button>
+                    <button onclick="feedPet('catfood', 50, 25)" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 p-3 rounded-2xl text-center cute-btn flex flex-col items-center">
+                        <span class="text-3xl mb-1">🥫</span>
+                        <span class="text-xs font-bold text-amber-900">Cat Food Premium</span>
+                        <span class="text-[10px] text-emerald-600 font-bold mt-1">+50 Lapar</span>
+                        <span class="text-[10px] text-amber-600 font-bold">🪙 25 Koin</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL SHOP SYSTEM -->
+        <div id="shopModal" class="absolute inset-0 bg-black/40 backdrop-blur-sm z-30 flex items-end sm:items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 border-2 border-pink-200 cute-shadow max-h-[80vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-pink-600 text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-store text-pink-500"></i> Toko Aksesoris
+                    </h3>
+                    <button onclick="closeModal('shopModal')" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+                </div>
+                
+                <div class="space-y-3">
+                    <!-- Topi Party -->
+                    <div class="flex items-center justify-between p-3 bg-pink-50 rounded-2xl border border-pink-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🥳</span>
+                            <div>
+                                <div class="font-bold text-xs text-slate-800">Topi Pesta</div>
+                                <div class="text-[10px] text-slate-500">🪙 50 Koin</div>
+                            </div>
+                        </div>
+                        <button id="btnBuyHat" onclick="buyAccessory('hat', 50)" class="bg-pink-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn">Beli</button>
+                    </div>
+
+                    <!-- Pita Leher -->
+                    <div class="flex items-center justify-between p-3 bg-pink-50 rounded-2xl border border-pink-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🎀</span>
+                            <div>
+                                <div class="font-bold text-xs text-slate-800">Pita Cantik</div>
+                                <div class="text-[10px] text-slate-500">🪙 75 Koin</div>
+                            </div>
+                        </div>
+                        <button id="btnBuyBow" onclick="buyAccessory('bow', 75)" class="bg-pink-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn">Beli</button>
+                    </div>
+
+                    <!-- Kacamata -->
+                    <div class="flex items-center justify-between p-3 bg-pink-50 rounded-2xl border border-pink-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🕶️</span>
+                            <div>
+                                <div class="font-bold text-xs text-slate-800">Kacamata Keren</div>
+                                <div class="text-[10px] text-slate-500">🪙 100 Koin</div>
+                            </div>
+                        </div>
+                        <button id="btnBuyGlasses" onclick="buyAccessory('glasses', 100)" class="bg-pink-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn">Beli</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL MINI GAME (Catch the Yarn / Tangkap Benang) -->
+        <div id="minigameModal" class="absolute inset-0 bg-slate-900/90 z-40 flex flex-col justify-between p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+            <!-- Game Bar -->
+            <div class="flex justify-between items-center text-white">
+                <div>
+                    <span class="text-xs text-slate-400">Skor:</span>
+                    <span id="gameScore" class="text-xl font-bold text-yellow-400">0</span>
+                </div>
+                <div class="text-center">
+                    <span class="text-xs text-slate-400">Waktu:</span>
+                    <span id="gameTimer" class="text-xl font-bold text-pink-400">15s</span>
+                </div>
+                <button onclick="endMinigame()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-xl font-bold">Keluar</button>
+            </div>
+
+            <!-- Area Bermain Game -->
+            <div id="gamePlayArea" class="relative flex-1 bg-slate-800 rounded-2xl my-3 overflow-hidden border-2 border-slate-700 cursor-crosshair">
+                <div id="yarnTarget" onclick="catchYarn(event)" class="absolute text-4xl transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 cursor-pointer select-none">
+                    🧶
+                </div>
+            </div>
+
+            <div class="text-center text-xs text-slate-300">
+                Ketuk/Klik bola benang 🧶 secepat mungkin untuk dapat koin!
+            </div>
+        </div>
+
+        <!-- WELCOME / NEW PET INITIALIZATION MODAL -->
+        <div id="startModal" class="absolute inset-0 bg-pink-50 z-50 flex flex-col items-center justify-center p-6 text-center">
+            <div class="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center text-4xl mb-3 shadow-inner">
+                🐱
+            </div>
+            <h1 class="text-2xl font-bold text-pink-600 mb-1">Pelihara Kucing Impianmu!</h1>
+            <p class="text-xs text-slate-500 mb-6">Pilih jenis kucing dan berikan nama terbaik.</p>
+
+            <div class="w-full space-y-4 max-w-xs">
+                <!-- Nama Kucing -->
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-700 mb-1">Nama Kucing:</label>
+                    <input type="text" id="inputPetName" value="Mimi" maxlength="12" class="w-full px-4 py-2 rounded-xl border-2 border-pink-200 focus:outline-none focus:border-pink-400 text-center font-bold text-pink-600">
+                </div>
+
+                <!-- Jenis / Warna Kucing -->
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-700 mb-1">Warna Kucing:</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="selectCatBreed('orange')" id="breedOrange" class="p-2 border-2 border-pink-400 bg-orange-100 rounded-xl flex flex-col items-center cute-btn">
+                            <span class="w-6 h-6 rounded-full bg-orange-500 mb-1 border border-white"></span>
+                            <span class="text-[10px] font-bold text-slate-700">Orange</span>
+                        </button>
+                        <button onclick="selectCatBreed('black')" id="breedBlack" class="p-2 border-2 border-transparent bg-slate-100 rounded-xl flex flex-col items-center cute-btn">
+                            <span class="w-6 h-6 rounded-full bg-slate-800 mb-1 border border-white"></span>
+                            <span class="text-[10px] font-bold text-slate-700">Hitam</span>
+                        </button>
+                        <button onclick="selectCatBreed('calico')" id="breedCalico" class="p-2 border-2 border-transparent bg-amber-100 rounded-xl flex flex-col items-center cute-btn">
+                            <span class="w-6 h-6 rounded-full bg-amber-600 mb-1 border border-white"></span>
+                            <span class="text-[10px] font-bold text-slate-700">Calico</span>
+                        </button>
+                        <button onclick="selectCatBreed('white')" id="breedWhite" class="p-2 border-2 border-transparent bg-slate-100 rounded-xl flex flex-col items-center cute-btn">
+                            <span class="w-6 h-6 rounded-full bg-slate-100 mb-1 border border-slate-300"></span>
+                            <span class="text-[10px] font-bold text-slate-700">Putih</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button onclick="startNewPet()" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-2xl cute-btn text-sm mt-4">
+                    Mulai Merawat 🐾
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Game logic is loaded from script.js -->
+    <script src="script.js">
+
+        /* --- GAME STATE & VARS --- */
+        let pet = {
+            name: "Mimi",
+            color: "orange",
+            hunger: 80,
+            hygiene: 90,
+            happiness: 85,
+            energy: 70,
+            coins: 100,
+            isSleeping: false,
+            inventory: {
+                hat: false,
+                bow: false,
+                glasses: false
+            },
+            equipped: {
+                hat: false,
+                bow: false,
+                glasses: false
+            }
+        };
+
+        let selectedColor = "orange";
+        let soundEnabled = true;
+
+        /* Cat Color Schemes */
+        const catColors = {
+            orange: { base: '#f97316', inner: '#ffedd5', stroke: '#c2410c' },
+            black: { base: '#334155', inner: '#64748b', stroke: '#0f172a' },
+            calico: { base: '#d97706', inner: '#fef3c7', stroke: '#92400e' },
+            white: { base: '#f8fafc', inner: '#f1f5f9', stroke: '#cbd5e1' }
+        };
+
+        /* WEB AUDIO API SYNTHESIZER (Tanpa File Eksternal) */
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'meow') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(700, now + 0.15);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.35);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } 
+            else if (type === 'purr') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(60, now);
+
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+            else if (type === 'pop') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(1000, now + 0.08);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            }
+            else if (type === 'coin') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(987.77, now); // B5
+                osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        /* --- INITIALIZATION & SAVE SYSTEM --- */
+        window.onload = function() {
+            loadGame();
+            setupCanvas();
+            startGameLoop();
+            updateRealTime();
+            setInterval(updateRealTime, 1000);
+        };
+
+        function saveGame() {
+            localStorage.setItem('virtualCatPetData', JSON.stringify(pet));
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('virtualCatPetData');
+            if (saved) {
+                try {
+                    pet = JSON.parse(saved);
+                    document.getElementById('startModal').classList.add('hidden');
+                    applyPetAppearance();
+                    updateUI();
+                } catch(e) {
+                    console.error("Failed to load save", e);
+                }
+            }
+        }
+
+        function selectCatBreed(color) {
+            selectedColor = color;
+            ['Orange', 'Black', 'Calico', 'White'].forEach(c => {
+                const btn = document.getElementById(`breed${c}`);
+                if (c.toLowerCase() === color) {
+                    btn.classList.add('border-pink-400');
+                    btn.classList.remove('border-transparent');
+                } else {
+                    btn.classList.remove('border-pink-400');
+                    btn.classList.add('border-transparent');
+                }
+            });
+        }
+
+        function startNewPet() {
+            const nameInput = document.getElementById('inputPetName').value.trim();
+            pet.name = nameInput || "Mimi";
+            pet.color = selectedColor;
+            pet.hunger = 80;
+            pet.hygiene = 90;
+            pet.happiness = 85;
+            pet.energy = 70;
+            pet.coins = 50;
+
+            document.getElementById('startModal').classList.add('hidden');
+            applyPetAppearance();
+            saveGame();
+            updateUI();
+            playSound('meow');
+            showSpeech("Meow! Salam kenal!");
+        }
+
+        function applyPetAppearance() {
+            const colorScheme = catColors[pet.color] || catColors.orange;
+            
+            // Set SVG Colors
+            document.getElementById('catBodyBase').setAttribute('fill', colorScheme.base);
+            document.getElementById('catHeadBase').setAttribute('fill', colorScheme.base);
+            document.getElementById('catPawLeft').setAttribute('fill', colorScheme.base);
+            document.getElementById('catPawRight').setAttribute('fill', colorScheme.base);
+            document.getElementById('catEarLeft').setAttribute('fill', colorScheme.base);
+            document.getElementById('catEarLeft').setAttribute('stroke', colorScheme.stroke);
+            document.getElementById('catEarRight').setAttribute('fill', colorScheme.base);
+            document.getElementById('catEarRight').setAttribute('stroke', colorScheme.stroke);
+            document.getElementById('catTail').setAttribute('stroke', colorScheme.base);
+
+            // Accessories
+            document.getElementById('accHat').classList.toggle('hidden', !pet.equipped.hat);
+            document.getElementById('accBow').classList.toggle('hidden', !pet.equipped.bow);
+            document.getElementById('accGlasses').classList.toggle('hidden', !pet.equipped.glasses);
+
+            document.getElementById('petNameDisplay').innerText = pet.name;
+        }
+
+        /* --- GAME LOOP & STAT DECAY --- */
+        function startGameLoop() {
+            // Decay stats every 3 seconds
+            setInterval(() => {
+                if (!pet.isSleeping) {
+                    pet.hunger = Math.max(0, pet.hunger - 1);
+                    pet.hygiene = Math.max(0, pet.hygiene - 0.5);
+                    pet.happiness = Math.max(0, pet.happiness - 0.8);
+                    pet.energy = Math.max(0, pet.energy - 0.5);
+                } else {
+                    // Recover energy while sleeping
+                    pet.energy = Math.min(100, pet.energy + 4);
+                    pet.hunger = Math.max(0, pet.hunger - 0.3);
+                    if (pet.energy >= 100) {
+                        toggleSleep(); // Wake up automatically when full energy
+                        showSpeech("Aku sudah segar kembali!");
+                    }
+                }
+
+                updateUI();
+                saveGame();
+            }, 3000);
+        }
+
+        /* --- UI UPDATES & EYES ANIMATION --- */
+        function updateUI() {
+            // Update Stat Bars
+            document.getElementById('statHungerVal').innerText = `${Math.round(pet.hunger)}%`;
+            document.getElementById('barHunger').style.width = `${pet.hunger}%`;
+
+            document.getElementById('statHygieneVal').innerText = `${Math.round(pet.hygiene)}%`;
+            document.getElementById('barHygiene').style.width = `${pet.hygiene}%`;
+
+            document.getElementById('statHappinessVal').innerText = `${Math.round(pet.happiness)}%`;
+            document.getElementById('barHappiness').style.width = `${pet.happiness}%`;
+
+            document.getElementById('statEnergyVal').innerText = `${Math.round(pet.energy)}%`;
+            document.getElementById('barEnergy').style.width = `${pet.energy}%`;
+
+            document.getElementById('coinCount').innerText = pet.coins;
+
+            // Dirty overlay toggle
+            const dirtyOverlay = document.getElementById('dirtyOverlay');
+            dirtyOverlay.style.opacity = pet.hygiene < 40 ? '1' : '0';
+
+            // Sleep Zzz toggle
+            const sleepZzz = document.getElementById('sleepZzz');
+            sleepZzz.style.opacity = pet.isSleeping ? '1' : '0';
+
+            // Facial Expressions Logic
+            const eyesNormal = document.getElementById('eyesNormal');
+            const eyesHappy = document.getElementById('eyesHappy');
+            const eyesSleep = document.getElementById('eyesSleep');
+
+            eyesNormal.classList.add('hidden');
+            eyesHappy.classList.add('hidden');
+            eyesSleep.classList.add('hidden');
+
+            if (pet.isSleeping) {
+                eyesSleep.classList.remove('hidden');
+            } else if (pet.happiness > 70) {
+                eyesHappy.classList.remove('hidden');
+            } else {
+                eyesNormal.classList.remove('hidden');
+            }
+
+            // Low Stat Notifications
+            if (pet.hunger < 25) {
+                showSpeech(`${pet.name} lapar sekali...`);
+            } else if (pet.hygiene < 25) {
+                showSpeech(`${pet.name} merasa gatal / kotor!`);
+            } else if (pet.energy < 20 && !pet.isSleeping) {
+                showSpeech(`${pet.name} sangat mengantuk...`);
+            }
+        }
+
+        function showSpeech(text) {
+            const speech = document.getElementById('catSpeech');
+            document.getElementById('catSpeechText').innerText = text;
+            speech.style.opacity = '1';
+            setTimeout(() => {
+                speech.style.opacity = '0';
+            }, 3000);
+        }
+
+        /* --- REAL TIME & DAY/NIGHT CYCLE --- */
+        function updateRealTime() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const isNight = hours >= 18 || hours < 6;
+
+            document.getElementById('timeDisplay').innerText = `${hours}:${minutes} ${isNight ? 'MALAM' : 'SIANG'}`;
+
+            const roomStage = document.getElementById('roomStage');
+            if (isNight && !pet.isSleeping) {
+                roomStage.classList.remove('bg-day');
+                roomStage.classList.add('bg-night');
+            } else if (!isNight && !pet.isSleeping) {
+                roomStage.classList.remove('bg-night');
+                roomStage.classList.add('bg-day');
+            }
+        }
+
+        /* --- INTERACTION 1: PETTING / ELUS KUCING --- */
+        function handlePetInteraction(e) {
+            if (pet.isSleeping) {
+                showSpeech("Ssshh... sedang tidur!");
+                return;
+            }
+
+            // Increase happiness
+            pet.happiness = Math.min(100, pet.happiness + 3);
+            updateUI();
+            playSound('purr');
+
+            // Mouth Animation
+            const mouthNormal = document.getElementById('mouthNormal');
+            const mouthOpen = document.getElementById('mouthOpen');
+            mouthNormal.classList.add('hidden');
+            mouthOpen.classList.remove('hidden');
+            setTimeout(() => {
+                mouthNormal.classList.remove('hidden');
+                mouthOpen.classList.add('hidden');
+            }, 400);
+
+            // Create Heart Particle at tap/click location
+            createParticle(e.clientX, e.clientY, '❤️');
+        }
+
+        function createParticle(x, y, symbol) {
+            const el = document.createElement('div');
+            el.className = 'particle text-2xl z-30';
+            el.innerText = symbol;
+            el.style.left = `${x - 12}px`;
+            el.style.top = `${y - 12}px`;
+            document.body.appendChild(el);
+
+            setTimeout(() => {
+                el.remove();
+            }, 1200);
+        }
+
+        /* --- INTERACTION 2: BERI MAKAN (FOOD) --- */
+        function openFoodMenu() {
+            if (pet.isSleeping) return showSpeech("Kucing sedang tidur!");
+            openModal('foodModal');
+        }
+
+        function feedPet(foodType, boost, cost) {
+            if (pet.coins < cost) {
+                alert("Koin kamu tidak cukup!");
+                return;
+            }
+
+            pet.coins -= cost;
+            pet.hunger = Math.min(100, pet.hunger + boost);
+            updateUI();
+            closeModal('foodModal');
+            playSound('pop');
+
+            showSpeech("Nyam nyam! Lezat sekali 🐟");
+
+            // Animation effect
+            const cat = document.getElementById('catCharacter');
+            cat.classList.add('scale-110');
+            setTimeout(() => cat.classList.remove('scale-110'), 300);
+        }
+
+        /* --- INTERACTION 3: MANDI (BATH) --- */
+        function startBathing() {
+            if (pet.isSleeping) return showSpeech("Kucing sedang tidur!");
+
+            pet.hygiene = 100;
+            pet.happiness = Math.min(100, pet.happiness + 5);
+            updateUI();
+            playSound('pop');
+
+            showSpeech("Segar sekali! Busa mandi 🧼");
+
+            // Create Bubble Effects Canvas / Screen
+            const stage = document.getElementById('roomStage');
+            const rect = stage.getBoundingClientRect();
+
+            for (let i = 0; i < 12; i++) {
+                setTimeout(() => {
+                    const x = rect.left + Math.random() * rect.width;
+                    const y = rect.top + Math.random() * rect.height;
+                    createParticle(x, y, '🫧');
+                }, i * 80);
+            }
+        }
+
+        /* --- INTERACTION 4: TIDUR (SLEEP) --- */
+        function toggleSleep() {
+            pet.isSleeping = !pet.isSleeping;
+            const nightOverlay = document.getElementById('nightOverlay');
+            const sleepBtnText = document.getElementById('sleepBtnText');
+
+            if (pet.isSleeping) {
+                nightOverlay.style.opacity = '1';
+                sleepBtnText.innerText = 'Bangun';
+                showSpeech("Selamat tidur... Zzz");
+                playSound('purr');
+            } else {
+                nightOverlay.style.opacity = '0';
+                sleepBtnText.innerText = 'Tidur';
+                showSpeech("Hoammm... Halo!");
+                playSound('meow');
+            }
+
+            updateUI();
+            saveGame();
+        }
+
+        /* --- INTERACTION 5: SHOP SYSTEM --- */
+        function openShop() {
+            updateShopUI();
+            openModal('shopModal');
+        }
+
+        function updateShopUI() {
+            const btnHat = document.getElementById('btnBuyHat');
+            const btnBow = document.getElementById('btnBuyBow');
+            const btnGlasses = document.getElementById('btnBuyGlasses');
+
+            // Hat
+            if (pet.inventory.hat) {
+                btnHat.innerText = pet.equipped.hat ? "Lepas" : "Pakai";
+                btnHat.className = pet.equipped.hat ? "bg-slate-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn" : "bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn";
+            }
+
+            // Bow
+            if (pet.inventory.bow) {
+                btnBow.innerText = pet.equipped.bow ? "Lepas" : "Pakai";
+                btnBow.className = pet.equipped.bow ? "bg-slate-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn" : "bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn";
+            }
+
+            // Glasses
+            if (pet.inventory.glasses) {
+                btnGlasses.innerText = pet.equipped.glasses ? "Lepas" : "Pakai";
+                btnGlasses.className = pet.equipped.glasses ? "bg-slate-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn" : "bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-xl font-bold cute-btn";
+            }
+        }
+
+        function buyAccessory(item, price) {
+            if (pet.inventory[item]) {
+                // Toggle Equipped
+                pet.equipped[item] = !pet.equipped[item];
+            } else {
+                // Buy
+                if (pet.coins < price) {
+                    alert("Koin kamu tidak cukup!");
+                    return;
+                }
+                pet.coins -= price;
+                pet.inventory[item] = true;
+                pet.equipped[item] = true;
+                playSound('coin');
+            }
+
+            applyPetAppearance();
+            updateUI();
+            updateShopUI();
+            saveGame();
+        }
+
+        /* --- MINI GAME: CATCH THE YARN --- */
+        let gameTimerInterval = null;
+        let gameScore = 0;
+        let gameTimeLeft = 15;
+
+        function openMinigame() {
+            if (pet.isSleeping) return showSpeech("Kucing sedang tidur!");
+
+            openModal('minigameModal');
+            gameScore = 0;
+            gameTimeLeft = 15;
+            document.getElementById('gameScore').innerText = gameScore;
+            document.getElementById('gameTimer').innerText = `${gameTimeLeft}s`;
+
+            moveYarn();
+
+            gameTimerInterval = setInterval(() => {
+                gameTimeLeft--;
+                document.getElementById('gameTimer').innerText = `${gameTimeLeft}s`;
+
+                if (gameTimeLeft <= 0) {
+                    endMinigame();
+                }
+            }, 1000);
+        }
+
+        function moveYarn() {
+            const playArea = document.getElementById('gamePlayArea');
+            const yarn = document.getElementById('yarnTarget');
+
+            const maxX = playArea.clientWidth - 50;
+            const maxY = playArea.clientHeight - 50;
+
+            const randomX = Math.max(25, Math.floor(Math.random() * maxX));
+            const randomY = Math.max(25, Math.floor(Math.random() * maxY));
+
+            yarn.style.left = `${randomX}px`;
+            yarn.style.top = `${randomY}px`;
+        }
+
+        function catchYarn(e) {
+            e.stopPropagation();
+            gameScore += 1;
+            document.getElementById('gameScore').innerText = gameScore;
+            playSound('pop');
+            createParticle(e.clientX, e.clientY, '⭐');
+            moveYarn();
+        }
+
+        function endMinigame() {
+            clearInterval(gameTimerInterval);
+            closeModal('minigameModal');
+
+            // Reward calculation
+            const coinsEarned = gameScore * 3;
+            pet.coins += coinsEarned;
+            pet.happiness = Math.min(100, pet.happiness + 15);
+            pet.energy = Math.max(0, pet.energy - 10);
+
+            if (coinsEarned > 0) playSound('coin');
+            updateUI();
+            saveGame();
+
+            showSpeech(`Selesai main! Dapat 🪙 ${coinsEarned} Koin!`);
+        }
+
+        /* --- MODAL HELPERS --- */
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        /* --- CANVAS FX BACKDROP --- */
+        function setupCanvas() {
+            const canvas = document.getElementById('effectsCanvas');
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+        }
+    </script>
+</body>
+</html>
